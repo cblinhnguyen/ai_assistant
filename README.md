@@ -1,12 +1,36 @@
-# ai_assistant
-The service receives sales lead updates from Couchbase Eventing, generates executive summaries and actionable recommendations using Bedrock LLMs, and writes them back to Couchbase while preserving historical data.
+# AI Sales Lead Assistant
 
-# AI Summary Service
-AI Sales Summary Service is a Flask-based service that generates executive summaries and actionable recommendations for sales leads. It integrates with Couchbase and AWS Bedrock to enrich sales lead documents and preserve historical changes.
+An intelligent sales lead management system that combines a **Streamlit web interface** for lead management with **AI-powered analysis** using **Flask**, **AWS Bedrock**, and **Couchbase Eventing**.
 
-An enterprise sales lead **summary and recommendation generator** using **Flask**, **AWS Bedrock**, and **Couchbase Eventing**.  
+## What This Project Does
 
-The service receives sales lead updates from Couchbase Eventing, generates executive summaries and actionable recommendations using Bedrock LLMs, and writes them back to Couchbase while preserving historical data.
+This comprehensive sales lead management solution provides:
+
+**🎯 Lead Management Interface (Streamlit)**
+- Create new sales leads with detailed company information
+- Edit and update existing lead records
+- View lead summaries and AI-generated recommendations
+- Manage lead status, pipeline stages, and priority levels
+
+**🤖 AI-Powered Analysis (Flask + AWS Bedrock)**
+- Automatically generates executive summaries for sales leads
+- Creates actionable recommendations with 4-5 specific next steps
+- Analyzes lead changes and provides strategic insights
+- Formats financial data (market cap, revenue, deal sizes) professionally
+
+**🔄 Real-Time Processing (Couchbase Eventing)**
+- Monitors sales lead updates in real-time
+- Triggers AI analysis automatically when leads are modified
+- Preserves historical data to track lead progression
+- Prevents infinite processing loops with smart flagging
+
+**💾 Data Persistence (Couchbase)**
+- Stores all lead information, summaries, and recommendations
+- Maintains complete audit trail of lead changes
+- Enables historical analysis and trend tracking
+- Supports enterprise-scale data management
+
+The system seamlessly integrates lead management workflows with AI-powered insights, helping sales teams make data-driven decisions and advance leads through the sales pipeline more effectively.
 
 ---
 
@@ -16,7 +40,6 @@ The service receives sales lead updates from Couchbase Eventing, generates execu
 - Creates actionable **recommendations** with 4–5 next steps
 - Preserves `old_data` to avoid overwriting historical information
 - Formats all USD amounts (e.g., `$1,234,567`)
-- Prevents infinite Couchbase Eventing loops with `_enriched` flag
 - Logs both Flask and Eventing activity for traceability
 
 ---
@@ -30,24 +53,68 @@ The service receives sales lead updates from Couchbase Eventing, generates execu
 - json
 - traceback
 
-### Python Packages
+## 🚀 How to Run the Applications
 
+### Setup Instructions
+
+#### 1. Create and Activate Virtual Environment
+```bash
+# Create virtual environment
 python3 -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
 source venv/bin/activate
-pip install flask couchbase boto3
+# On Windows:
+# venv\Scripts\activate
+```
 
-**Setup**
+#### 2. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
-Couchbase Configuration:
-**Bucket:** sales_lead
-**Scope:** _default
-**Collection**: _default
-Ensure proper authentication (Administrator / password).
-AWS Bedrock Configuration:
-**Region:** us-east-1
-**Model:** meta.llama3-70b-instruct-v1:0
-**Run the Flask App:**
-python3 app.py
+#### 3. Create Environment Configuration
+Create a `.env` file in the same directory as `app.py` with the following environment variables:
 
+```env
+# Couchbase Configuration
+COUCHBASE_CONNSTR=<your_couchbase_connection_string>
+COUCHBASE_USERNAME=<your_couchbase_username>
+COUCHBASE_PASSWORD=<your_couchbase_password>
+COUCHBASE_BUCKET=sales_lead
+COUCHBASE_SCOPE=_default
+COUCHBASE_COLLECTION=_default
 
+# AWS Bedrock Configuration
+AWS_ACCESS_KEY_ID=<your_aws_access_key>
+AWS_SECRET_ACCESS_KEY=<your_aws_secret_key>
+AWS_REGION=us-east-1
+```
 
+#### 4. Deploy and Activate Couchbase Eventing Function
+1. Open Couchbase Web Console
+2. Navigate to **Eventing** section
+3. Deploy the `AI_Assistant.json` eventing function
+4. **Activate** the function to enable automatic processing
+
+#### 5. Run the Applications
+
+**Terminal 1 - Flask API Server:**
+```bash
+python app.py
+```
+The Flask server will run on `http://localhost:5001`
+
+**Terminal 2 - Streamlit Web Interface:**
+```bash
+streamlit run streamlit_app.py
+```
+The Streamlit app will run on `http://localhost:8501`
+
+### Important Notes
+- Both applications must be running simultaneously for full functionality
+- The Flask API handles the AI processing and Couchbase integration
+- The Streamlit app provides the web interface for viewing and managing sales leads
+- Ensure the `AI_Assistant.json` eventing function is **activated** in Couchbase for automatic processing
+- The eventing function will automatically trigger when sales lead documents are updated in Couchbase

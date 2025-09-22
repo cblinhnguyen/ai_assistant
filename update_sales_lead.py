@@ -1,37 +1,30 @@
 #!/usr/bin/env python3
-from couchbase.cluster import Cluster
-from couchbase.auth import PasswordAuthenticator
-from couchbase.options import ClusterOptions
-from couchbase.exceptions import DocumentNotFoundException
 from datetime import datetime, timezone
-import random
+import os
+
+from couchbase.auth import PasswordAuthenticator
+from couchbase.cluster import Cluster
+from couchbase.exceptions import DocumentNotFoundException
+from couchbase.options import ClusterOptions
+from dotenv import load_dotenv
+
+from sales_lead import (
+    lead_score_weighted,
+    random_lead_status_and_pipeline_stage,
+    random_notes,
+)
+
+# Load environment variables
+load_dotenv()
 
 # Couchbase connection config
-CB_CONN_STR = "couchbase://localhost"
-CB_USERNAME = "Administrator"
-CB_PASSWORD = "password"
-CB_BUCKET = "sales_lead"
+COUCHBASE_CONNSTR = os.getenv("COUCHBASE_CONNSTR")
+COUCHBASE_USERNAME = os.getenv("COUCHBASE_USERNAME")
+COUCHBASE_PASSWORD = os.getenv("COUCHBASE_PASSWORD")
+COUCHBASE_BUCKET = os.getenv("COUCHBASE_BUCKET")
+COUCHBASE_SCOPE = os.getenv("COUCHBASE_SCOPE")
+COUCHBASE_COLLECTION = os.getenv("COUCHBASE_COLLECTION")
 
-# Random value generators
-def random_lead_status():
-    return random.choice(["Prospect", "Qualified", "Negotiation", "Won", "Lost"])
-
-def random_pipeline_stage():
-    return random.choice(["Discovery", "Proposal Sent", "Contract Sent", "Negotiation", "Closed Won", "Closed Lost"])
-
-def random_notes():
-    notes_samples = [
-        "Contacted client, awaiting response.",
-        "Sent proposal, pending approval.",
-        "Negotiations ongoing, positive signs.",
-        "Lost contact, follow-up needed.",
-        "Client requested revised pricing."
-    ]
-    return random.choice(notes_samples)
-
-def random_lead_score(current_score):
-    delta = random.choice([-5, 5])
-    return max(0, min(100, current_score + delta))
 
 def update_document(doc):
     if "sales_lead" not in doc:
@@ -41,20 +34,21 @@ def update_document(doc):
     old_data = doc.get("old_data", {})
     changed = False
 
-    # pipeline_stage
+    # lead_status and pipeline_stage
     current_pipeline = doc["sales_lead"].get("pipeline_stage")
-    new_pipeline = random_pipeline_stage()
-    if new_pipeline != current_pipeline:
-        old_data["pipeline_stage"] = {"old_value": current_pipeline, "audit_date": audit_date}
-        doc["sales_lead"]["pipeline_stage"] = new_pipeline
-        changed = True
-
-    # lead_status
     current_status = doc["sales_lead"].get("lead_status")
-    new_status = random_lead_status()
-    if new_status != current_status:
-        old_data["lead_status"] = {"old_value": current_status, "audit_date": audit_date}
+    new_status, new_pipeline = random_lead_status_and_pipeline_stage()
+    if new_status != current_status or new_pipeline != current_pipeline:
+        old_data["lead_status"] = {
+            "old_value": current_status,
+            "audit_date": audit_date,
+        }
+        old_data["pipeline_stage"] = {
+            "old_value": current_pipeline,
+            "audit_date": audit_date,
+        }
         doc["sales_lead"]["lead_status"] = new_status
+        doc["sales_lead"]["pipeline_stage"] = new_pipeline
         changed = True
 
     # notes
@@ -67,7 +61,12 @@ def update_document(doc):
 
     # lead_score
     current_score = doc["sales_lead"].get("lead_score", 0)
-    new_score = random_lead_score(current_score)
+    new_score = lead_score_weighted(
+        doc["sales_lead"].get("last_deal_size_usd", 0),
+        new_status,
+        new_pipeline,
+        doc["sales_lead"].get("crm_activity_flag", False),
+    )
     if new_score != current_score:
         old_data["lead_score"] = {"old_value": current_score, "audit_date": audit_date}
         doc["sales_lead"]["lead_score"] = new_score
@@ -82,12 +81,16 @@ def update_document(doc):
 
     return doc, False
 
+
 def main():
-    cluster = Cluster(CB_CONN_STR, ClusterOptions(PasswordAuthenticator(CB_USERNAME, CB_PASSWORD)))
-    bucket = cluster.bucket(CB_BUCKET)
+    cluster = Cluster(
+        COUCHBASE_CONNSTR,
+        ClusterOptions(PasswordAuthenticator(COUCHBASE_USERNAME, COUCHBASE_PASSWORD)),
+    )
+    bucket = cluster.bucket(COUCHBASE_BUCKET)
     collection = bucket.default_collection()
 
-    query = f'SELECT META().id FROM `{CB_BUCKET}`'
+    query = f"SELECT META().id FROM `{COUCHBASE_BUCKET}`"
     result = cluster.query(query)
 
     total = 0
@@ -110,6 +113,7 @@ def main():
 
     print(f"Processed {total} documents.")
     print(f"Documents updated: {updated}")
+
 
 if __name__ == "__main__":
     main()
