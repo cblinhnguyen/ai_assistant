@@ -121,6 +121,9 @@ def generate_summary():
         # Include old_data changes in prompt
         old_changes_text = format_old_data(old_data)
 
+        lead_score = sales_lead.get("lead_score", 0)
+        lead_score_text = f"{lead_score}/100" if lead_score >= 0 else "N/A"
+
         # Build prompt for Bedrock
         prompt = f"""
 You are an expert enterprise sales strategist with 15+ years of experience in B2B sales and account management. Your expertise includes lead qualification, pipeline management, and strategic account development.
@@ -146,19 +149,19 @@ Market Cap: {market_cap}
 Annual Revenue: {annual_sales}
 Lead Status: {sales_lead.get('lead_status', 'N/A')}
 Pipeline Stage: {sales_lead.get('pipeline_stage', 'N/A')}
-Last Deal Size: {last_deal}
+Deal Size: {last_deal}
 Contact: {sales_lead.get('sales_contact_name', 'N/A')} ({sales_lead.get('sales_contact_email', 'N/A')})
 Lead Source: {sales_lead.get('lead_source', 'N/A')}
 Last Contact Date: {sales_lead.get('date_of_last_contact', 'N/A')}
 CRM Activity: {"Active" if sales_lead.get('crm_activity_flag', False) else "Inactive"}
-Lead Score: {sales_lead.get('lead_score', 'N/A')}/100
+Lead Score: {lead_score_text}
 Priority Level: {"HIGH PRIORITY" if sales_lead.get('high_priority_flag', False) else "Standard"}
 Notes: {sales_lead.get('notes', 'None')}
 
 ANALYSIS INSTRUCTIONS:
 1. In the summary, focus on the lead's current position in the sales cycle and any significant changes
 2. For recommendations, prioritize immediate actions that will advance this lead through the pipeline
-3. Consider the lead's market position, deal size potential, and current engagement level
+3. Consider the lead's market position, deal size potential, current engagement level and notes
 4. Make recommendations specific and time-bound where possible
 
 Generate your response now:

@@ -131,6 +131,12 @@ st.markdown(
         color: white;
     }
     
+    /* Closed priority badge - gray color scheme */
+    .priority-badge-closed {
+        background-color: #757575;     /* Gray background */
+        color: white;
+    }
+    
     /* High lead score text styling */
     .lead-score-high {
         color: #f44336;               /* Red text for high scores */
@@ -211,17 +217,34 @@ def format_usd(amount):
         return str(amount)
 
 
+def format_lead_score(score):
+    """
+    Format a lead score for display, showing N/A for negative scores (closed leads).
+
+    Args:
+        score (int/float/None): The lead score to format
+
+    Returns:
+        str: Formatted score string ("N/A" for negative/None scores, otherwise "XX/100")
+    """
+    if score is None or score < 0:
+        return "N/A"
+    return f"{int(score)}/100"
+
+
 def get_priority_badge_class(score):
     """
     Determine CSS class for priority badge based on lead score.
 
     Args:
-        score (int): Lead score (0-100)
+        score (int/float/None): Lead score (negative scores indicate closed leads)
 
     Returns:
         str: CSS class name for priority badge styling
     """
-    if score >= 80:
+    if score is None or score < 0:
+        return "priority-badge-closed"  # Closed leads get closed styling
+    elif score >= 80:
         return "priority-badge-high"
     elif score >= 50:
         return "priority-badge-medium"
@@ -234,12 +257,14 @@ def get_priority_text(score):
     Get priority level text based on lead score.
 
     Args:
-        score (int): Lead score (0-100)
+        score (int/float/None): Lead score (negative scores indicate closed leads)
 
     Returns:
-        str: Priority level ("HIGH", "MEDIUM", or "LOW")
+        str: Priority level ("CLOSED", "HIGH", "MEDIUM", or "LOW")
     """
-    if score >= 80:
+    if score is None or score < 0:
+        return "CLOSED"
+    elif score >= 80:
         return "HIGH"
     elif score >= 50:
         return "MEDIUM"
@@ -376,11 +401,15 @@ def view_all_leads(cluster, collection):
         if lead["data"].get("sales_lead", {}).get("high_priority_flag", False)
     )
 
-    # Calculate average lead score across all leads
+    # Calculate average lead score across all leads (excluding negative scores for closed leads)
+    valid_scores = [
+        lead["data"].get("sales_lead", {}).get("lead_score", 0) 
+        for lead in leads 
+        if lead["data"].get("sales_lead", {}).get("lead_score", 0) >= 0
+    ]
     avg_score = (
-        sum(lead["data"].get("sales_lead", {}).get("lead_score", 0) for lead in leads)
-        / total_leads
-        if total_leads > 0
+        sum(valid_scores) / len(valid_scores)
+        if valid_scores
         else 0
     )
 
@@ -422,7 +451,7 @@ def view_all_leads(cluster, collection):
     with col3:
         priority_filter = st.selectbox(
             "Filter by priority",
-            ["All", "High Priority", "Medium Priority", "Low Priority"],
+            ["All", "High Priority", "Medium Priority", "Low Priority", "Closed Leads"],
         )
 
     # =============================================================================
@@ -465,11 +494,18 @@ def view_all_leads(cluster, collection):
             if 50 <= lead["data"].get("sales_lead", {}).get("lead_score", 0) < 80
         ]
     elif priority_filter == "Low Priority":
-        # Low priority: lead score < 50
+        # Low priority: 0 <= lead score < 50
         filtered_leads = [
             lead
             for lead in filtered_leads
-            if lead["data"].get("sales_lead", {}).get("lead_score", 0) < 50
+            if 0 <= lead["data"].get("sales_lead", {}).get("lead_score", 0) < 50
+        ]
+    elif priority_filter == "Closed Leads":
+        # Closed leads: negative or None lead scores
+        filtered_leads = [
+            lead
+            for lead in filtered_leads
+            if lead["data"].get("sales_lead", {}).get("lead_score", 0) < 0
         ]
 
     # Display filtered results count
@@ -513,7 +549,7 @@ def view_all_leads(cluster, collection):
 
             # Middle column: Lead metrics and status
             with col2:
-                st.metric("Lead Score", f"{lead_score}/100")
+                st.metric("Lead Score", format_lead_score(lead_score))
                 st.metric("Status", sales_lead.get("lead_status", "N/A"))
                 st.metric("Pipeline Stage", sales_lead.get("pipeline_stage", "N/A"))
 
@@ -524,7 +560,7 @@ def view_all_leads(cluster, collection):
                     "Annual Sales", format_usd(sales_lead.get("annual_sales_usd", 0))
                 )
                 st.metric(
-                    "Last Deal", format_usd(sales_lead.get("last_deal_size_usd", 0))
+                    "Deal Size", format_usd(sales_lead.get("last_deal_size_usd", 0))
                 )
 
             # Action button to edit the lead
@@ -541,9 +577,9 @@ def view_all_leads(cluster, collection):
             if "summary" in lead["data"] and "recommendation" in lead["data"]:
                 with st.expander("AI Summary & Recommendations"):
                     st.write("**Summary:**")
-                    st.write(lead["data"].get("summary", "No summary available"))
+                    st.text(lead["data"].get("summary", "No summary available"))
                     st.write("**Recommendations:**")
-                    st.write(
+                    st.text(
                         lead["data"].get(
                             "recommendation", "No recommendations available"
                         )
@@ -748,19 +784,22 @@ def edit_lead_page(cluster, collection):
                 ),
             )
 
-        # Right column: Deal size and lead scoring
+        # Right column: Deal size
         with col2:
             # Required field: Last deal size
             new_last_deal_size = st.number_input(
-                "Last Deal Size (USD) *",
+                "Deal Size (USD) *",
                 min_value=0,
                 value=sales_lead.get("last_deal_size_usd", 0),
                 step=10000,
             )
 
-            # Lead score slider (0-100)
-            new_lead_score = st.slider(
-                "Lead Score", 0, 100, value=sales_lead.get("lead_score", 50)
+            # Display calculated lead score
+            current_lead_score = sales_lead.get("lead_score", 0)
+            st.metric("Current Lead Score", format_lead_score(current_lead_score))
+
+            st.info(
+                "💡 Lead score will be automatically calculated based on deal size, status, pipeline stage, and CRM activity. Negative scores indicate closed leads and display as 'N/A'."
             )
 
         # =============================================================================
@@ -825,6 +864,14 @@ def edit_lead_page(cluster, collection):
                 audit_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 old_data = selected_lead["data"].get("old_data", {})
                 changed = False
+
+                # Calculate new lead score using weighted algorithm
+                new_lead_score = lead_score_weighted(
+                    new_last_deal_size,
+                    new_lead_status,
+                    new_pipeline_stage,
+                    new_crm_activity,
+                )
 
                 # Define all fields to check for changes
                 # Format: field_name: (new_value, old_value)
@@ -925,9 +972,9 @@ def edit_lead_page(cluster, collection):
                     updated_doc["sales_lead"]["notes"] = new_notes
                     updated_doc["sales_lead"]["quarter"] = new_quarter
 
-                    # Update high priority flag based on new lead score
+                    # Update high priority flag based on new lead score (only for positive scores)
                     updated_doc["sales_lead"]["high_priority_flag"] = (
-                        new_lead_score >= 80
+                        new_lead_score is not None and new_lead_score >= 80
                     )
 
                     # Preserve audit trail data
@@ -1062,7 +1109,7 @@ def create_new_lead_form(collection):
         with col2:
             # Required field: Last deal size
             last_deal_size = st.number_input(
-                "Last Deal Size (USD) *", min_value=0, value=0, step=10000
+                "Deal Size (USD) *", min_value=0, value=0, step=10000
             )
 
             # Optional field: Notes
@@ -1134,8 +1181,7 @@ def create_new_lead_form(collection):
                         "notes": notes,
                         "crm_activity_flag": crm_activity,
                         "lead_score": lead_score,
-                        "high_priority_flag": lead_score
-                        >= 80,  # Auto-set based on score
+                        "high_priority_flag": lead_score is not None and lead_score >= 80,  # Auto-set based on score
                     },
                 }
 

@@ -14,6 +14,7 @@ fake = Faker()
 
 class LeadStatus:
     """Lead status constants"""
+
     PROSPECT = "Prospect"
     QUALIFIED = "Qualified"
     NEGOTIATION = "Negotiation"
@@ -23,6 +24,7 @@ class LeadStatus:
 
 class PipelineStage:
     """Pipeline stage constants"""
+
     DISCOVERY = "Discovery"
     PROPOSAL_SENT = "Proposal Sent"
     CONTRACT_SENT = "Contract Sent"
@@ -33,6 +35,7 @@ class PipelineStage:
 
 class MarketRegion:
     """Market region constants"""
+
     NORTH_AMERICA = "North America"
     EUROPE = "Europe"
     SOUTHEAST_ASIA = "Southeast Asia"
@@ -43,6 +46,7 @@ class MarketRegion:
 
 class LeadSource:
     """Lead source constants"""
+
     REFERRAL = "Referral"
     COLD_CALL = "Cold Call"
     INBOUND_WEB_LEAD = "Inbound Web Lead"
@@ -57,7 +61,7 @@ LEAD_STATUSES = [
     LeadStatus.QUALIFIED,
     LeadStatus.NEGOTIATION,
     LeadStatus.WON,
-    LeadStatus.LOST
+    LeadStatus.LOST,
 ]
 
 # Pipeline stages lists for easy iteration
@@ -67,7 +71,7 @@ PIPELINE_STAGES = [
     PipelineStage.CONTRACT_SENT,
     PipelineStage.NEGOTIATION,
     PipelineStage.CLOSED_WON,
-    PipelineStage.CLOSED_LOST
+    PipelineStage.CLOSED_LOST,
 ]
 
 # Market regions lists for easy iteration
@@ -77,7 +81,7 @@ MARKET_REGIONS = [
     MarketRegion.SOUTHEAST_ASIA,
     MarketRegion.SOUTH_AMERICA,
     MarketRegion.MIDDLE_EAST,
-    MarketRegion.AFRICA
+    MarketRegion.AFRICA,
 ]
 
 # Lead sources lists for easy iteration
@@ -87,16 +91,30 @@ LEAD_SOURCES = [
     LeadSource.INBOUND_WEB_LEAD,
     LeadSource.TRADE_SHOW,
     LeadSource.PARTNER_REFERRAL,
-    LeadSource.AD_CAMPAIGN
+    LeadSource.AD_CAMPAIGN,
 ]
 
 # Status to pipeline stage mapping
 STATUS_PIPELINE_MAPPING = {
-    LeadStatus.PROSPECT: [PipelineStage.DISCOVERY, PipelineStage.PROPOSAL_SENT, PipelineStage.CONTRACT_SENT, PipelineStage.NEGOTIATION],
-    LeadStatus.QUALIFIED: [PipelineStage.DISCOVERY, PipelineStage.PROPOSAL_SENT, PipelineStage.CONTRACT_SENT, PipelineStage.NEGOTIATION],
-    LeadStatus.NEGOTIATION: [PipelineStage.PROPOSAL_SENT, PipelineStage.CONTRACT_SENT, PipelineStage.NEGOTIATION],
+    LeadStatus.PROSPECT: [
+        PipelineStage.DISCOVERY,
+        PipelineStage.PROPOSAL_SENT,
+        PipelineStage.CONTRACT_SENT,
+        PipelineStage.NEGOTIATION,
+    ],
+    LeadStatus.QUALIFIED: [
+        PipelineStage.DISCOVERY,
+        PipelineStage.PROPOSAL_SENT,
+        PipelineStage.CONTRACT_SENT,
+        PipelineStage.NEGOTIATION,
+    ],
+    LeadStatus.NEGOTIATION: [
+        PipelineStage.PROPOSAL_SENT,
+        PipelineStage.CONTRACT_SENT,
+        PipelineStage.NEGOTIATION,
+    ],
     LeadStatus.WON: [PipelineStage.CLOSED_WON],
-    LeadStatus.LOST: [PipelineStage.CLOSED_LOST]
+    LeadStatus.LOST: [PipelineStage.CLOSED_LOST],
 }
 
 # Lead score calculation mappings
@@ -105,7 +123,7 @@ STATUS_SCORES = {
     LeadStatus.NEGOTIATION: 15,
     LeadStatus.QUALIFIED: 10,
     LeadStatus.PROSPECT: 5,
-    LeadStatus.LOST: -10
+    LeadStatus.LOST: -10,
 }
 
 PIPELINE_SCORES = {
@@ -114,7 +132,7 @@ PIPELINE_SCORES = {
     PipelineStage.PROPOSAL_SENT: 10,
     PipelineStage.DISCOVERY: 5,
     PipelineStage.CLOSED_LOST: -10,
-    PipelineStage.NEGOTIATION: 20
+    PipelineStage.NEGOTIATION: 20,
 }
 
 
@@ -165,7 +183,9 @@ def lead_score_weighted(last_deal_size, lead_status, pipeline_stage, crm_active)
     score = random.randint(20, 50)
     deal_score = min(last_deal_size / 166666, 30)
     score += deal_score
-    if lead_status in (LeadStatus.WON, LeadStatus.LOST):
+    if lead_status == LeadStatus.WON:
+        return -1
+    if lead_status == LeadStatus.LOST:
         return 0
     score += STATUS_SCORES.get(lead_status, 0)
     score += PIPELINE_SCORES.get(pipeline_stage, 0)
